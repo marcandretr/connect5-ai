@@ -4,6 +4,10 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]]
+  :plugins [[codox "0.8.10"]]
+    :codox {:defaults {:doc/format :markdown}}
+  :java-source-paths ["src-java"]
   :main ^:skip-aot connect5-ai.core
   :target-path "target/%s"
+  :omit-source true
   :profiles {:uberjar {:aot :all}})
