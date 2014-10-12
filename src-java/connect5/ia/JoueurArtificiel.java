@@ -5,49 +5,81 @@ package connect5.ia;
  *
  * Vous pouvez ajouter d'autres classes sous le package connect5.ia.
  *
- * Prénom Nom    (CODE00000001)
- * Prénom Nom    (CODE00000002)
+ * Marc-Antoine Sauve   (SAUM13119008)
+ * Marc-Andre Tremblay  (TREM22129101)
  */
 
+
+import clojure.lang.*;
+import com.google.common.base.Joiner;
 import connect5.Grille;
 import connect5.Joueur;
 import connect5.Position;
+
+
 import java.util.ArrayList;
 import java.util.Random;
 
 
 public class JoueurArtificiel implements Joueur {
 
-    private final Random random = new Random();
+    static Var CljPlayer;
 
-    /**
-     * Voici la fonction à modifier.
-     * Évidemment, vous pouvez ajouter d'autres fonctions dans JoueurArtificiel.
-     * Vous pouvez aussi ajouter d'autres classes, mais elles doivent être
-     * ajoutées dans le package connect5.ia.
-     * Vous de pouvez pas modifier les fichiers directement dans connect., car ils seront écrasés.
-     * 
-     * @param grille Grille reçu (état courrant). Il faut ajouter le prochain coup.
-     * @param delais Délais de rélexion en temps réel.
-     * @return Retourne le meilleur coup calculé.
-     */
+    static {
+        IFn require = RT.var("clojure.core", "require").fn();
+        require.invoke(Symbol.intern("connect5-ai.core"));
+        CljPlayer = RT.var("connect5-ai.core", "-getNextMove");
+    }
+
     @Override
     public Position getProchainCoup(Grille grille, int delais) {
-        ArrayList<Integer> casesvides = new ArrayList<Integer>();
-        int nbcol = grille.getData()[0].length;
-        for(int l=0;l<grille.getData().length;l++)
-            for(int c=0;c<nbcol;c++)
-                if(grille.getData()[l][c]==0)
-                    casesvides.add(l*nbcol+c);
-        int choix = random.nextInt(casesvides.size());
-        choix = casesvides.get(choix);
-        return new Position(choix / nbcol, choix % nbcol);
+
+        PersistentVector res = (PersistentVector) CljPlayer.invoke(grille.getData(), delais);
+        return new Position(
+                ((Long) res.get(0)).intValue(),
+                ((Long) res.get(1)).intValue());
     }
 
     @Override
     public String getAuteurs() {
-        return "Prénom1 Nom1 (CODE00000001)  et  Prénom2 Nom2 (CODE00000002)";
+        return Joiner.on("\n").join(AUTHORS);
     }
+
+    private class Author {
+        public String name;
+        public String permCode;
+        public String githubUID;
+
+        public Author setName(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Author setPermCode(String permCode) {
+            this.permCode = permCode;
+            return this;
+        }
+
+        public Author setGithubUID(String githubUID) {
+            this.githubUID = githubUID;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return this.name + "\t (" + this.permCode + ") \t" + githubUID;
+        }
+    }
+    final Author[] AUTHORS = {
+            new Author()
+                    .setName("Marc-Antoine Sauve")
+                    .setPermCode("SAUM13119008")
+                    .setGithubUID("madeinqc"),
+            new Author()
+                    .setName("Marc-Andre Tremblay")
+                    .setPermCode("TREM22129101")
+                    .setGithubUID("marcandretr")
+    };
 
 
 }

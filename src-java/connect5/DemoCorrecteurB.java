@@ -8,7 +8,7 @@
 
 package connect5;
 
-import connect5.ia.JoueurArtificiel;
+import connect5.ia.JoueurAleatoire;
 
 /**
  * Exemple de programme pour la correction du critère B.
@@ -19,7 +19,7 @@ public class DemoCorrecteurB {
 
     public static void main(String args[]){
 
-        Joueur joueur = new JoueurArtificiel();
+        Joueur joueur = new JoueurAleatoire();
 
         // Test B1
         System.out.println("Test #1");

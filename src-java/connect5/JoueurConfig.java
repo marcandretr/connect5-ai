@@ -8,7 +8,9 @@
 
 package connect5;
 
+import connect5.ia.JoueurAleatoire;
 import connect5.ia.JoueurArtificiel;
+
 import java.io.IOException;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -27,6 +29,8 @@ public class JoueurConfig extends javax.swing.JPanel {
     public Joueur getJoueur(){
         if(manuelRB.isSelected())
             return null;
+        if(aleatoireRB.isSelected())
+            return new JoueurAleatoire();
         if(interneRB.isSelected())
             return new JoueurArtificiel();
         if(externRB.isSelected()){
@@ -71,6 +75,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         buttonGroup1 = new javax.swing.ButtonGroup();
         manuelRB = new javax.swing.JRadioButton();
         interneRB = new javax.swing.JRadioButton();
+        aleatoireRB = new javax.swing.JRadioButton();
         externRB = new javax.swing.JRadioButton();
         jLabel1 = new javax.swing.JLabel();
         pathTF = new javax.swing.JTextField();
@@ -117,6 +122,21 @@ public class JoueurConfig extends javax.swing.JPanel {
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         add(interneRB, gridBagConstraints);
 
+        // Random player
+        buttonGroup1.add(aleatoireRB);
+        aleatoireRB.setText("JOUEUR ALEATOIRE (classe connect5.ia.JoueurAleatoire)    ");
+        aleatoireRB.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                interneRBActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 3;
+        gridBagConstraints.gridwidth = 4;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
+        add(aleatoireRB, gridBagConstraints);
+
         buttonGroup1.add(externRB);
         externRB.setText("Artificiel externe (interface stdin / stdout - classe connect5.JoueurClientCmd)   ");
         externRB.addChangeListener(new javax.swing.event.ChangeListener() {
@@ -126,7 +146,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 3;
+        gridBagConstraints.gridy = 4;
         gridBagConstraints.gridwidth = 4;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         add(externRB, gridBagConstraints);
@@ -134,7 +154,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         jLabel1.setText("Commande: ");
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 4;
+        gridBagConstraints.gridy = 5;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
         gridBagConstraints.weightx = 1.0;
         add(jLabel1, gridBagConstraints);
@@ -150,7 +170,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 1;
-        gridBagConstraints.gridy = 4;
+        gridBagConstraints.gridy = 6;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
@@ -181,7 +201,7 @@ public class JoueurConfig extends javax.swing.JPanel {
             }
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
-        gridBagConstraints.gridy = 6;
+        gridBagConstraints.gridy = 7;
         gridBagConstraints.gridwidth = 4;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         add(remoteRB, gridBagConstraints);
@@ -189,7 +209,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         jLabel2.setText("Hôte :");
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 7;
+        gridBagConstraints.gridy = 8;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
         gridBagConstraints.weightx = 1.0;
         add(jLabel2, gridBagConstraints);
@@ -197,7 +217,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         hostTF.setText("gdac2.uqam.ca");
         hostTF.setEnabled(false);
         gridBagConstraints = new java.awt.GridBagConstraints();
-        gridBagConstraints.gridy = 7;
+        gridBagConstraints.gridy = 8;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         gridBagConstraints.weightx = 100.0;
@@ -205,7 +225,7 @@ public class JoueurConfig extends javax.swing.JPanel {
 
         jLabel3.setText("Port :");
         gridBagConstraints = new java.awt.GridBagConstraints();
-        gridBagConstraints.gridy = 7;
+        gridBagConstraints.gridy = 8;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
         gridBagConstraints.weightx = 1.0;
         add(jLabel3, gridBagConstraints);
@@ -213,7 +233,7 @@ public class JoueurConfig extends javax.swing.JPanel {
         portTF.setText("1199");
         portTF.setEnabled(false);
         gridBagConstraints = new java.awt.GridBagConstraints();
-        gridBagConstraints.gridy = 7;
+        gridBagConstraints.gridy = 8;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         gridBagConstraints.weightx = 3.0;
         add(portTF, gridBagConstraints);
@@ -264,6 +284,7 @@ public class JoueurConfig extends javax.swing.JPanel {
     public javax.swing.JRadioButton externRB;
     private javax.swing.JTextField hostTF;
     public javax.swing.JRadioButton interneRB;
+    public javax.swing.JRadioButton aleatoireRB;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;

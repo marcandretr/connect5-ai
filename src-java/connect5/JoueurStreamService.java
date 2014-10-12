@@ -8,6 +8,8 @@
 
 package connect5;
 
+import connect5.ia.JoueurAleatoire;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -74,7 +76,7 @@ public class JoueurStreamService {
     }
 
     public static void main(String args[]) throws Exception{
-        Joueur joueur = new connect5.ia.JoueurArtificiel();
+        Joueur joueur = new JoueurAleatoire();
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         runInterface(joueur, System.out, reader);
     }
