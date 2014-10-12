@@ -1,5 +1,5 @@
 (ns connect5-ai.core
-  (:require [clojure.core.async :as casync]
+  (:require [clojure.core.async :as async]
             clojure.set)
   (:gen-class))
 
@@ -72,15 +72,18 @@
     ))
 
 (defn minimax-decision
-  [grid-w grid-h is-first-player state]
+  [grid-w grid-h is-first-player state timeout]
 
   (println grid-w grid-h is-first-player state)
   (if (and
         is-first-player
         (empty? (state :1)))
+    ; Return a vector
+    ; If the board is empty and we are player 1
     [(long (/ grid-w 2)) (long (/ grid-h 2))]
+    ; Otherwise
 
-    [2 3]
+
     ;(gen-successors grid-w grid-h is-first-player state)
     ))
 
@@ -94,5 +97,46 @@
     (minimax-decision (count (first charmat-seq))
                       (count charmat-seq)
                       is-first-player
-                      state)))
+                      state
+                      timeout)))
+
+(defn chantest
+  []
+
+  (let [c (async/chan (async/sliding-buffer 1))
+        heuristic-c (async/chan (async/sliding-buffer 1))
+        timeout-chan (async/timeout 2000)]
+    (async/go
+      ; Compute layers and feed them to the channel as long as it's opened.
+      (loop [x 0]
+
+        (if ;(not last-chan-op-result)
+            (clojure.core.async.impl.protocols/closed? heuristic-c)
+          (println "Chan c was closed. Has stopped digging down layers")
+          (do
+            ;(Thread/sleep (rand-int 300))
+            (println "Computed configurations of layer " x)
+            (async/>! c x)
+            (recur (inc x))))))
+    (letfn [(chan-taker [] (async/alts!! [timeout-chan c] :priority true))]
+      (async/go
+
+      (loop [[result source] (chan-taker)]
+        (if (not result)
+          (do
+            (println "Chan h was closed. Has stopped minimaxing"))
+          (do
+            (println "Started Calculating heuristic val of layer " result)
+            ;(Thread/sleep (rand-int 600))
+            (println "Done    Calculating heuristic val of layer " result)
+            (async/>! heuristic-c result)
+            (recur (chan-taker)))))))
+    ; Let's block on the timeout channel
+    (async/<!! timeout-chan)
+    ; We must stop this madness, close those chans!
+    (async/close! c)
+    (async/close! heuristic-c)
+    ; We return the last value found in the heuristic-channel (If there is none, we're damned. We be blocking here)
+    ; Todo: Use alts! to get a value and not say here forever.
+    (async/<!! heuristic-c)))
 
