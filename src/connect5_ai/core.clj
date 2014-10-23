@@ -7,8 +7,8 @@
 ;(defn -main [& args])
 
 (def adjacent-transform
-  (for [c1 (range -2 3)
-        c2 (range -2 3)]
+  (for [c1 (range -1 2)
+        c2 (range -1 2)]
     [c1 c2]))
 
 (defn in-bounds?
@@ -110,8 +110,8 @@
   (if (is-terminal-state state)
     [(get-value-for-state state) []]
     (if (= max-depth 0)
-      [(heuristic state) []]
-      (let [best Double/POSITIVE_INFINITY]
+      [(heuristic grid-width grid-height is-first-player state) []]
+      (let [best Double/NEGATIVE_INFINITY]
         (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
                new-alpha alpha
                new-beta beta]
@@ -119,7 +119,7 @@
             (if (empty? (state true))
               [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
               [best []])
-            (let [successor-state (first successor-states)
+            (let [[successor-state _] (first successor-states)
                   [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
                   v (- v-temp)]
               (if (> v best)
@@ -136,7 +136,7 @@
   ""
   [is-first-player state timeout grid-width grid-height]
   ; Return if timeout
-  (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 2 grid-width grid-height)]
+  (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 1 grid-width grid-height)]
     (if is-first-player
       move
       (second (negamax-inner state)))))
