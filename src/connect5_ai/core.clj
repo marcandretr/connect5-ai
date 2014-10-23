@@ -1,6 +1,7 @@
 (ns connect5-ai.core
   (:require [clojure.core.async :as async]
-            clojure.set)
+            clojure.set
+            clojure.data.priority-map)
   (:gen-class))
 
 ;(defn -main [& args])
@@ -81,7 +82,7 @@
   ""
   [state grid-width grid-height is-first-player]
   (let [possible-moves (gen-children-points state grid-width grid-height)
-        possible-states (map generate-world-from-position possible-moves is-first-player)]
+        possible-states (map #(generate-world-from-position state % is-first-player) possible-moves)]
     (reduce #(assoc %1 %2 (heuristic grid-width grid-height is-first-player %2))
             (clojure.data.priority-map/priority-map)
             possible-states)))
