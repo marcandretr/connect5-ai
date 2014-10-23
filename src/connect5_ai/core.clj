@@ -82,7 +82,7 @@
   ""
   [state grid-width grid-height is-first-player]
   (let [possible-moves (gen-children-points state grid-width grid-height)
-        possible-states (map #(generate-world-from-position state % is-first-player) possible-moves)]
+        possible-states (set (map #(generate-world-from-position state % is-first-player) possible-moves))]
     (reduce #(assoc %1 %2 (heuristic grid-width grid-height is-first-player %2))
             (clojure.data.priority-map/priority-map)
             possible-states)))
@@ -111,26 +111,29 @@
     [(get-value-for-state state) []]
     (if (= max-depth 0)
       [(heuristic grid-width grid-height is-first-player state) []]
-      (let [best Double/NEGATIVE_INFINITY]
         (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
                new-alpha alpha
-               new-beta beta]
+               new-beta beta
+               best Double/NEGATIVE_INFINITY
+               best-move []]
           (if (empty? successor-states)
             (if (empty? (state true))
               [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
-              [best []])
+                [best best-move])
             (let [[successor-state _] (first successor-states)
                   [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
                   v (- v-temp)]
               (if (> v best)
-                (let [new-best v]
+                (let [new-best v
+                      _ (println (type successor-state))
+                      new-best-move (first (clojure.set/difference (set (successor-state is-first-player)) (set (state is-first-player))))]
                   (if (> new-best new-alpha)
-                    (let [ret-alpha best]
+                    (let [ret-alpha new-best]
                       (if (>= ret-alpha new-beta)
-                        [new-best (first (clojure.set/difference successor-state state))]
-                        (recur (rest successor-states) ret-alpha new-beta)))
-                    (recur (rest successor-states) new-alpha new-beta)))
-                (recur (rest successor-states) new-alpha new-beta)))))))))
+                        [new-best new-best-move]
+                        (recur (rest successor-states) ret-alpha new-beta new-best new-best-move)))
+                    (recur (rest successor-states) new-alpha new-beta new-best new-best-move)))
+                (recur (rest successor-states) new-alpha new-beta best best-move))))))))
 
 (defn negamax
   ""
@@ -139,7 +142,7 @@
   (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 1 grid-width grid-height)]
     (if is-first-player
       move
-      (second (negamax-inner state)))))
+      (second (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 1 grid-width grid-height)))))
 
 (defn -getNextMove
   "Gets the next best move"
@@ -155,11 +158,11 @@
     ;                  is-first-player
     ;                  state
     ;                  timeout)
-    (negamax is-first-player
+    (into [] (negamax is-first-player
              state
              timeout
              grid-width
-             grid-height)))
+             grid-height))))
 
 (defn chantest
   []
