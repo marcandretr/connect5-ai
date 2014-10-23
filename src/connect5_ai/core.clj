@@ -29,8 +29,8 @@
       (reduce
         (fn [col [col-idx charac]]
           (case charac
-            1 (assoc col true (cons [line-idx col-idx] (true col)))
-            2 (assoc col false (cons [line-idx col-idx] (false col)))
+            1 (assoc col true (cons [line-idx col-idx] (col true)))
+            2 (assoc col false (cons [line-idx col-idx] (col false)))
             col))
         ret-map
         (map-indexed vector (first charmat)))
@@ -66,12 +66,12 @@
 (defn is-terminal-state
   ""
   [state]
-  )
+  false)
 
 (defn get-value-for-state
   ""
   [state]
-  )
+  (rand-int 5))
 
 (defn generate-world-from-position
   ""
@@ -108,22 +108,26 @@
   ""
   [state alpha beta timeout is-first-player max-depth grid-width grid-height]
   (if (is-terminal-state state)
-    (get-value-for-state state)
+    [(get-value-for-state state) []]
     (if (= max-depth 0)
-      (heuristic state)
+      [(heuristic state) []]
       (let [best Double/POSITIVE_INFINITY]
         (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
                new-alpha alpha
                new-beta beta]
           (if (empty? successor-states)
-            best
-            (let [v (- (negamax-inner (first successor-states) (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height))]
+            (if (empty? (state true))
+              [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
+              [best []])
+            (let [successor-state (first successor-states)
+                  [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
+                  v (- v-temp)]
               (if (> v best)
                 (let [new-best v]
                   (if (> new-best new-alpha)
                     (let [ret-alpha best]
                       (if (>= ret-alpha new-beta)
-                        new-best
+                        [new-best (first (clojure.set/difference successor-state state))]
                         (recur (rest successor-states) ret-alpha new-beta)))
                     (recur (rest successor-states) new-alpha new-beta)))
                 (recur (rest successor-states) new-alpha new-beta)))))))))
@@ -132,10 +136,10 @@
   ""
   [is-first-player state timeout grid-width grid-height]
   ; Return if timeout
-  (let [negamax-value (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player grid-width grid-height)]
+  (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 2 grid-width grid-height)]
     (if is-first-player
-      negamax-value
-      (- (negamax-inner state)))))
+      move
+      (second (negamax-inner state)))))
 
 (defn -getNextMove
   "Gets the next best move"
