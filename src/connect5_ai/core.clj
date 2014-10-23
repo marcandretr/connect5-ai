@@ -28,8 +28,8 @@
       (reduce
         (fn [col [col-idx charac]]
           (case charac
-            1 (assoc col :1 (cons [line-idx col-idx] (:1 col)))
-            2 (assoc col :2 (cons [line-idx col-idx] (:2 col)))
+            1 (assoc col true (cons [line-idx col-idx] (true col)))
+            2 (assoc col false (cons [line-idx col-idx] (false col)))
             col))
         ret-map
         (map-indexed vector (first charmat)))
@@ -38,7 +38,8 @@
 
 (defn heuristic
   "Processes the heuristic for a state"
-  [grid-w grid-h is-first-player state])
+  [grid-w grid-h is-first-player state]
+  (rand-int 5))
 
 (defn gen-surrounding-points
   [grid-w grid-h [x y :as point]]
@@ -51,7 +52,7 @@
 (defn gen-children-points
   [parent-state grid-w grid-h]
 
-  (let [all-parent-points-union (clojure.set/union (parent-state :1) (parent-state :2))]
+  (let [all-parent-points-union (clojure.set/union (parent-state true) (parent-state false))]
 
     ;Possible points
     (clojure.set/difference
@@ -61,15 +62,30 @@
         all-parent-points-union)
       all-parent-points-union)))
 
-(defn gen-children-states
-  "Swiggity Swag"
-  [grid-w grid-h is-first-player state]
+(defn is-terminal-state
+  ""
+  [state]
+  )
 
-  (let [player-to-gen (if (> (count (state :1)) (count (state :2))) :2 :1)
-        children-positions (gen-children-points state grid-w grid-h)
-        ]
-    ; Todo: Started from the bottom now we here
-    ))
+(defn get-value-for-state
+  ""
+  [state]
+  )
+
+(defn generate-world-from-position
+  ""
+  [state position is-first-player]
+  (assoc state is-first-player (cons position (state is-first-player))))
+
+(defn generate-successor-states
+  ""
+  [state grid-width grid-height is-first-player]
+  (let [possible-moves (gen-children-points state grid-width grid-height)
+        possible-states (map generate-world-from-position possible-moves is-first-player)]
+    (reduce #(assoc %1 %2 (heuristic grid-width grid-height is-first-player %2))
+            (clojure.data.priority-map/priority-map)
+            possible-states)))
+
 
 (defn minimax-decision
   [grid-w grid-h is-first-player state timeout]
@@ -77,7 +93,7 @@
   (println grid-w grid-h is-first-player state)
   (if (and
         is-first-player
-        (empty? (state :1)))
+        (empty? (state true)))
     ; Return a vector
     ; If the board is empty and we are player 1
     [(long (/ grid-w 2)) (long (/ grid-h 2))]
@@ -87,18 +103,58 @@
     ;(gen-successors grid-w grid-h is-first-player state)
     ))
 
+(defn- negamax-inner
+  ""
+  [state alpha beta timeout is-first-player max-depth grid-width grid-height]
+  (if (is-terminal-state state)
+    (get-value-for-state state)
+    (if (= max-depth 0)
+      (heuristic state)
+      (let [best Double/POSITIVE_INFINITY]
+        (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
+               new-alpha alpha
+               new-beta beta]
+          (if (empty? successor-states)
+            best
+            (let [v (- (negamax-inner (first successor-states) (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height))]
+              (if (> v best)
+                (let [new-best v]
+                  (if (> new-best new-alpha)
+                    (let [ret-alpha best]
+                      (if (>= ret-alpha new-beta)
+                        new-best
+                        (recur (rest successor-states) ret-alpha new-beta)))
+                    (recur (rest successor-states) new-alpha new-beta)))
+                (recur (rest successor-states) new-alpha new-beta)))))))))
+
+(defn negamax
+  ""
+  [is-first-player state timeout grid-width grid-height]
+  ; Return if timeout
+  (let [negamax-value (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player grid-width grid-height)]
+    (if is-first-player
+      negamax-value
+      (- (negamax-inner state)))))
+
 (defn -getNextMove
   "Gets the next best move"
   [charmat timeout]
   (let [charmat-seq (lazy-seq charmat)
-        state (gen-map-from-charmat charmat-seq {:1 #{} :2 #{}} 0)
-        is-first-player (even? (+ (count (state :1)) (count (state :2))))]
+        state (gen-map-from-charmat charmat-seq {true #{} false #{}} 0)
+        is-first-player (even? (+ (count (state true)) (count (state false))))
+        grid-width (count (first charmat-seq))
+        grid-height (count charmat-seq)]
 
-    (minimax-decision (count (first charmat-seq))
-                      (count charmat-seq)
-                      is-first-player
-                      state
-                      timeout)))
+    ;(minimax-decision grid-w
+    ;                  grid-h
+    ;                  is-first-player
+    ;                  state
+    ;                  timeout)
+    (negamax is-first-player
+             state
+             timeout
+             grid-width
+             grid-height)))
 
 (defn chantest
   []
@@ -110,7 +166,7 @@
       ; Compute layers and feed them to the channel as long as it's opened.
       (loop [x 0]
 
-        (if ;(not last-chan-op-result)
+        (if                                                 ;(not last-chan-op-result)
             (clojure.core.async.impl.protocols/closed? heuristic-c)
           (println "Chan c was closed. Has stopped digging down layers")
           (do
@@ -121,16 +177,16 @@
     (letfn [(chan-taker [] (async/alts!! [timeout-chan c] :priority true))]
       (async/go
 
-      (loop [[result source] (chan-taker)]
-        (if (not result)
-          (do
-            (println "Chan h was closed. Has stopped minimaxing"))
-          (do
-            (println "Started Calculating heuristic val of layer " result)
-            ;(Thread/sleep (rand-int 600))
-            (println "Done    Calculating heuristic val of layer " result)
-            (async/>! heuristic-c result)
-            (recur (chan-taker)))))))
+        (loop [[result source] (chan-taker)]
+          (if (not result)
+            (do
+              (println "Chan h was closed. Has stopped minimaxing"))
+            (do
+              (println "Started Calculating heuristic val of layer " result)
+              ;(Thread/sleep (rand-int 600))
+              (println "Done    Calculating heuristic val of layer " result)
+              (async/>! heuristic-c result)
+              (recur (chan-taker)))))))
     ; Let's block on the timeout channel
     (async/<!! timeout-chan)
     ; We must stop this madness, close those chans!

@@ -5,7 +5,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [com.google.collections/google-collections "1.0"]]
+                 [com.google.collections/google-collections "1.0"]
+                 [org.clojure/data.priority-map "0.0.5"]]
   :plugins [[codox "0.8.10"]]
     :codox {:defaults {:doc/format :markdown}}
   :java-source-paths ["src-java"]
