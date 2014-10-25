@@ -5,7 +5,7 @@
             [clojure.math.combinatorics :as combo])
   (:gen-class))
 
-(def width-heuristic-calculation 6)
+(def width-heuristic-calculation 5)
 
 (defn gen-heuristic-dictionary
   "Generate the dictionnary of heuristics values"
@@ -18,12 +18,13 @@
 (defn calc-positive-heuristic
   ""
   [list-to-check player opponent]
+  (let [list-to-check (conj list-to-check :empty)]
   (if (and (= (.indexOf (rest list-to-check) opponent) -1) (= (.indexOf (rest list-to-check) :wall) -1))
     (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
       (if (< count-in-list 4)
         count-in-list
         1000))
-    0))
+    0)))
 
 (defn calc-heuristic
   ""
