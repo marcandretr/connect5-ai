@@ -21,7 +21,7 @@
   (let [list-to-check (conj list-to-check :empty)]
   (if (and (= (.indexOf (rest list-to-check) opponent) -1) (= (.indexOf (rest list-to-check) :wall) -1))
     (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
-      (if (< count-in-list 4)
+      (if (<= count-in-list 4)
         count-in-list
         1000))
     0)))
