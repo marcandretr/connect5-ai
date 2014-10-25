@@ -35,7 +35,7 @@
 (defn fill-heuristics-dict
   ""
   []
-  (reduce #(assoc-in %1 [%2] (calc-heuristic %2 :max :min))
+  (reduce #(assoc-in %1 %2 (calc-heuristic %2 :max :min))
           (gen-heuristic-dictionary width-heuristic-calculation)
           (apply clojure.math.combinatorics/cartesian-product
                  (for [_ (range width-heuristic-calculation)] [:min :max :wall :empty]))))
