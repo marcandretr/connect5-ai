@@ -1,10 +1,46 @@
 (ns connect5-ai.core
   (:require [clojure.core.async :as async]
             clojure.set
-            clojure.data.priority-map)
+            clojure.data.priority-map
+            [clojure.math.combinatorics :as combo])
   (:gen-class))
 
-;(defn -main [& args])
+(def width-heuristic-calculation 6)
+
+(defn gen-heuristic-dictionary
+  "Generate the dictionnary of heuristics values"
+  [depth]
+  (apply merge (for [x '(:min :max :wall :empty)]
+                 (if (= depth 0)
+                   {x 0}
+                   {x (gen-heuristic-dictionary (dec depth))}))))
+
+(defn calc-positive-heuristic
+  ""
+  [list-to-check player opponent]
+  (if (and (= (.indexOf (rest list-to-check) opponent) -1) (= (.indexOf (rest list-to-check) :wall) -1))
+    (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
+      (if (< count-in-list 4)
+        count-in-list
+        1000))
+    0))
+
+(defn calc-heuristic
+  ""
+  [list-to-check player opponent]
+  (- (calc-positive-heuristic list-to-check player opponent)
+     (calc-positive-heuristic (reverse list-to-check) opponent player)))
+
+(defn fill-heuristics-dict
+  ""
+  []
+  (reduce #(assoc-in %1 [%2] (calc-heuristic %2 :max :min))
+          (gen-heuristic-dictionary width-heuristic-calculation)
+          (apply clojure.math.combinatorics/cartesian-product
+                 (for [_ (range width-heuristic-calculation)] [:min :max :wall :empty]))))
+
+(def heuristic-dict (fill-heuristics-dict))
+
 
 (def adjacent-transform
   (for [c1 (range -1 2)
@@ -111,29 +147,29 @@
     [(get-value-for-state state) []]
     (if (= max-depth 0)
       [(heuristic grid-width grid-height is-first-player state) []]
-        (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
-               new-alpha alpha
-               new-beta beta
-               best Double/NEGATIVE_INFINITY
-               best-move []]
-          (if (empty? successor-states)
-            (if (empty? (state true))
-              [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
-                [best best-move])
-            (let [[successor-state _] (first successor-states)
-                  [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
-                  v (- v-temp)]
-              (if (> v best)
-                (let [new-best v
-                      _ (println (type successor-state))
-                      new-best-move (first (clojure.set/difference (set (successor-state is-first-player)) (set (state is-first-player))))]
-                  (if (> new-best new-alpha)
-                    (let [ret-alpha new-best]
-                      (if (>= ret-alpha new-beta)
-                        [new-best new-best-move]
-                        (recur (rest successor-states) ret-alpha new-beta new-best new-best-move)))
-                    (recur (rest successor-states) new-alpha new-beta new-best new-best-move)))
-                (recur (rest successor-states) new-alpha new-beta best best-move))))))))
+      (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
+             new-alpha alpha
+             new-beta beta
+             best Double/NEGATIVE_INFINITY
+             best-move []]
+        (if (empty? successor-states)
+          (if (empty? (state true))
+            [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
+            [best best-move])
+          (let [[successor-state _] (first successor-states)
+                [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
+                v (- v-temp)]
+            (if (> v best)
+              (let [new-best v
+                    _ (println (type successor-state))
+                    new-best-move (first (clojure.set/difference (set (successor-state is-first-player)) (set (state is-first-player))))]
+                (if (> new-best new-alpha)
+                  (let [ret-alpha new-best]
+                    (if (>= ret-alpha new-beta)
+                      [new-best new-best-move]
+                      (recur (rest successor-states) ret-alpha new-beta new-best new-best-move)))
+                  (recur (rest successor-states) new-alpha new-beta new-best new-best-move)))
+              (recur (rest successor-states) new-alpha new-beta best best-move))))))))
 
 (defn negamax
   ""
@@ -159,10 +195,10 @@
     ;                  state
     ;                  timeout)
     (into [] (negamax is-first-player
-             state
-             timeout
-             grid-width
-             grid-height))))
+                      state
+                      timeout
+                      grid-width
+                      grid-height))))
 
 (defn chantest
   []
@@ -175,7 +211,7 @@
       (loop [x 0]
 
         (if                                                 ;(not last-chan-op-result)
-            (clojure.core.async.impl.protocols/closed? heuristic-c)
+          (clojure.core.async.impl.protocols/closed? heuristic-c)
           (println "Chan c was closed. Has stopped digging down layers")
           (do
             ;(Thread/sleep (rand-int 300))
