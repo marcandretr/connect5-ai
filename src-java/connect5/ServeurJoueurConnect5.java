@@ -9,6 +9,7 @@
 package connect5;
 
 import connect5.ia.JoueurAleatoire;
+import connect5.ia.JoueurArtificiel;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,8 +25,8 @@ import java.util.Date;
  */
 public class ServeurJoueurConnect5 {
 
-    public static void main(String args[]) throws Exception{
-        int port = args.length>0 ? Integer.parseInt(args[0]) : 1199;
+    public static void main() throws Exception{
+        int port = 1199;
 		System.out.println("Ouverture du port " + port);
         ServerSocket serversocket = new ServerSocket(port);
         System.out.println("Attente de connection...");
@@ -62,8 +63,8 @@ public class ServeurJoueurConnect5 {
             try{
                 PrintStream out = new PrintStream(socket.getOutputStream());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                JoueurAleatoire joueur;
-                joueur = new JoueurAleatoire();
+                JoueurArtificiel joueur;
+                joueur = new JoueurArtificiel();
                 //joueur.showTrace = true;
                 JoueurStreamService.runInterface(joueur, out, reader);
             }catch(Exception e){
