@@ -35,8 +35,8 @@ public class JoueurArtificiel implements Joueur {
     public Position getProchainCoup(Grille grille, int delais) {
         PersistentVector res = (PersistentVector) CljPlayer.invoke(grille.getData(), delais);
         return new Position(
-                ((Long) res.get(0)).intValue(),
-                ((Long) res.get(1)).intValue());
+                ((Long) res.get(1)).intValue(),
+                ((Long) res.get(0)).intValue());
     }
 
     @Override

@@ -6,6 +6,11 @@
   (:gen-class))
 
 (def width-heuristic-calculation 6)
+(def directors {:h (map #(do [%1 0]) (range -5 6))
+                :v (map #(do [0 %1]) (range -5 6))
+                :d1 (map #(do [%1 %1]) (range -5 6))
+                :d2 (map #(do [%1 (- %1)]) (range -5 6))})
+
 
 (defn gen-heuristic-dictionary
   "Generate the dictionnary of heuristics values"
@@ -69,8 +74,8 @@
       (reduce
         (fn [col [col-idx charac]]
           (case charac
-            1 (assoc col true (cons [line-idx col-idx] (col true)))
-            2 (assoc col false (cons [line-idx col-idx] (col false)))
+            1 (assoc col true (conj (col true) [col-idx line-idx]))
+            2 (assoc col false (conj (col false) [col-idx line-idx]))
             col))
         ret-map
         (map-indexed vector (first charmat)))
@@ -93,7 +98,11 @@
     ;Possible points
     (clojure.set/difference
       (reduce
-        (fn [col1 el1] (clojure.set/union col1 (set (gen-surrounding-points grid-w grid-h el1))))
+        (fn [col1 el1]
+          (clojure.set/union
+            col1
+            (set
+              (gen-surrounding-points grid-w grid-h el1))))
         #{}
         all-parent-points-union)
       all-parent-points-union)))
@@ -114,14 +123,14 @@
 (defn line-index-from-point
   [[x y :as point]
    grid-width]
-  {:h  x
-   :v  y
+  {:v  x
+   :h  y
    :d1 (- x y)
    :d2 (- (dec grid-width) x y)}
   )
 
 (defn gen-lines
-  [points grid-width]
+  [points grid-w grid-h]
 
   (loop [points points
          h {}
@@ -136,7 +145,7 @@
        :d2 d2}
       (let [point (first points)
             [x y] point]
-        (let [indexes (line-index-from-point point grid-width)]
+        (let [indexes (line-index-from-point point grid-w)]
           (recur
             (rest points)
             (default-assoc h (indexes :h) x)
@@ -145,88 +154,114 @@
             (default-assoc d2 (indexes :d2) x)))))))        ; Todo: if it shits bricks, look here closely.
 
 (defn build-all-lines-from-state
-  [state grid-w]
-  {:max (gen-lines (state true) grid-w)
-   :min (gen-lines (state false) grid-w)})
+  [state grid-w grid-h is-first-player]
+  {:max (gen-lines (state is-first-player) grid-w grid-h)
+   :min (gen-lines (state (not is-first-player)) grid-w grid-h)})
 
 (defn get-value-for-point
-  [{friend :max foe :min}
+  [{max-lines :max min-lines :min}
    [x y :as point]
    [grid-w grid-h :as grid-dimensions]]
   (assert (in-bounds? grid-w grid-h point) "Requested point is not in bounds. This is some serious thing homie.")
 
   (let [indexes (line-index-from-point point grid-w)
-        paths (map (fn [[i1 a] [i2 b]]
-                     (assert (= i1 i2) (str "Map is not mixing the same lines - " i1 " with " i2))
-                     (let [line-index (indexes i1)
-                           la (or (a line-index) #{})
-                           lb (or (b line-index) #{})]
-                       (for [i (range -5 6)
+        paths (map (fn [[linetype-max max-lines-for-type] [linetype-min min-lines-for-type]]
+                     (assert (= linetype-max linetype-min) (str "Map is not mixing the same lines - " linetype-max " with " linetype-min))
+                     (let [line-index (indexes linetype-max)
+                           _ (prn linetype-max line-index point)
+                           max-line (or (max-lines-for-type line-index) #{})
+                           min-line (or (min-lines-for-type line-index) #{})
+                           _ (prn max-line min-line)
+                           ]
 
-                             :let [realpoint (case i1
-                                               :v (+ i y)
-                                               (+ i x))]]
-                         (cond
-                           (or
-                             (< realpoint 0)
-                             (>= realpoint (case i1
-                                             :h grid-w
-                                             :v grid-h
-                                             :d1 (cond
-                                                   (= line-index 0) (min grid-w grid-h)
-                                                   (< grid-w grid-h) (if (< line-index 0)
-                                                                       (if (<= (- grid-w grid-h) line-index)
-                                                                         grid-w
-                                                                         (+ grid-h line-index))
-                                                                       (- grid-w line-index))
-                                                   (>= grid-w grid-h) (if (< line-index 0)
-                                                                        (+ grid-h line-index)
-                                                                        (if (>= (- grid-w grid-h) line-index)
-                                                                          grid-h
-                                                                          (- grid-w line-index))))
-                                             :d2 (cond
-                                                   (= line-index 0) (min grid-w grid-h)
-                                                   (< grid-w grid-h) (if (< line-index 0)
-                                                                       (if (<= (- grid-w grid-h) line-index)
-                                                                         grid-w
-                                                                         (+ grid-h line-index))
-                                                                       (- grid-w line-index))
-                                                   (>= grid-w grid-h) (if (< line-index 0)
-                                                                        (+ grid-h line-index)
-                                                                        (if (>= (- grid-w grid-h) line-index)
-                                                                          grid-h
-                                                                          (- grid-w line-index))))))) :wall
-                           (contains? la realpoint) :max
-                           (contains? lb realpoint) :min
-                           :else :empty))))
-                   friend foe)]
+                       (map
+                         (fn [[nx ny :as new-point]]
+                           (let [index-in-line (if (= linetype-max :v) ny nx)]
+                             (cond
+                               (not (in-bounds? grid-w grid-h new-point)) :wall
+                               (contains? max-line index-in-line) :max
+                               (contains? min-line index-in-line) :min
+                               :else :empty)))
+                         (map (partial map + point) (directors linetype-max)))
+
+                       ;(let [da-big-list (for [i (range -5 6)
+                       ;
+                       ;                        :let [index-in-line (+ i (case linetype-max
+                       ;                                          :v y
+                       ;                                          :h x
+                       ;                                          :d1 (if (pos? line-index) y x)
+                       ;                                          :d2 (if (pos? line-index) x (- grid-h y))))]]
+                       ;                    (cond
+                       ;                      (or
+                       ;                        (prn :index-in-line index-in-line)
+                       ;                        (< index-in-line 0)
+                       ;                        (>= index-in-line (case linetype-max
+                       ;                                        :h grid-w
+                       ;                                        :v grid-h
+                       ;                                        :d1 (cond
+                       ;                                              (= line-index 0) (min grid-w grid-h)
+                       ;                                              (< grid-w grid-h) (if (< line-index 0)
+                       ;                                                                  (if (<= (- grid-w grid-h) line-index)
+                       ;                                                                    grid-w
+                       ;                                                                    (+ grid-h line-index))
+                       ;                                                                  (- grid-w line-index))
+                       ;                                              (>= grid-w grid-h) (if (< line-index 0)
+                       ;                                                                   (+ grid-h line-index)
+                       ;                                                                   (if (>= (- grid-w grid-h) line-index)
+                       ;                                                                     grid-h
+                       ;                                                                     (- grid-w line-index))))
+                       ;                                        :d2 (cond
+                       ;                                              (= line-index 0) (min grid-w grid-h)
+                       ;                                              (< grid-w grid-h) (if (< line-index 0)
+                       ;                                                                  (if (<= (- grid-w grid-h) line-index)
+                       ;                                                                    grid-w
+                       ;                                                                    (+ grid-h line-index))
+                       ;                                                                  (- grid-w line-index))
+                       ;                                              (>= grid-w grid-h) (if (< line-index 0)
+                       ;                                                                   (+ grid-h line-index)
+                       ;                                                                   (if (>= (- grid-w grid-h) line-index)
+                       ;                                                                     grid-h
+                       ;                                                                     (- grid-w line-index))))))) :wall
+                       ;                      (contains? max-line index-in-line) :max
+                       ;                      (contains? min-line index-in-line) :min
+                       ;                      :else :empty))
+                       ;
+                       ;      ]
+                       ;  da-big-list)
+                       ))
+                   max-lines min-lines)]
 
     (reduce + (map (fn [path]
-                     (prn "*Sent1" (take 6 path) (get-in heuristic-dict (take 6 path)))
+                     (prn "PATH" path)
+                     (prn "*Sent1" (take 6 path) (get-in heuristic-dict (take 6 path)) )
                      (prn "*Sent2" (reverse (take-last 6 path)) (get-in heuristic-dict (reverse(take-last 6 path))))
+                     (assert (= :empty (nth path 5)))
                      (+
              (get-in heuristic-dict (take 6 path))
              (get-in heuristic-dict (reverse(take-last 6 path))))
-           ) paths))
-    ))
+           ) paths))))
 
 (defn get-value-for-state
   ""
   [grid-w grid-h state is-first-player]
 
-  (let [{:keywords [:max :min] :as orig-lines} (build-all-lines-from-state state grid-w)]
+  (let [all-lines (build-all-lines-from-state state grid-w grid-h is-first-player)]
 
-    (get-value-for-point (if is-first-player orig-lines {:max (orig-lines :min) :min  (orig-lines :max)})
+    (get-value-for-point all-lines
                          (state :last-move)
                          [grid-w grid-h])))
 
 
   (defn generate-world-from-position
     ""
-    [state position is-first-player]
+    [grid-w grid-h state position is-first-player]
     (let [tstate (transient state)]
-    (assoc! tstate is-first-player (cons position (state is-first-player)))
+    (assoc! tstate is-first-player (conj (state is-first-player) position))
     (assoc! tstate :last-move position)
+    (assoc! tstate :heuristic-result (get-value-for-state grid-w
+                                                          grid-h
+                                                          (assoc state :last-move position)
+                                                          is-first-player))
     (persistent! tstate)))
 
   (defn generate-successor-states
@@ -234,13 +269,16 @@
     [state grid-width grid-height is-first-player]
     (let [ _ (prn "Childrens of" (state :last-move))
            possible-moves (gen-children-points state grid-width grid-height)
-          possible-states (set (map #(generate-world-from-position state % is-first-player) possible-moves))]
-      (reduce (fn [col item]
-                (let [heurval (get-value-for-state grid-width grid-height item is-first-player)]
-                  (prn heurval item)
-                      (assoc col item heurval)))
-              (clojure.data.priority-map/priority-map)
-              possible-states)))
+           _ (prn state possible-moves)
+          possible-states (set
+                            (map
+                              #(generate-world-from-position grid-width grid-height state % is-first-player)
+                              possible-moves))]
+      (reduce
+        (fn [col item]
+          (assoc col item (item :heuristic-result)))
+        (clojure.data.priority-map/priority-map)
+        possible-states)))
 
 
   (defn minimax-decision
@@ -264,7 +302,7 @@
       [(get-value-for-state state) []] ; TODO: Would be supposed to crash... Seems like it's never called
       (if (= max-depth 0)
         ;[(heuristic grid-width grid-height is-first-player state) []]
-        [(get-value-for-state grid-width grid-height state is-first-player) []]
+        [(state :heuristic-result) (state :last-move)]
         (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
                new-alpha alpha
                new-beta beta
@@ -275,11 +313,18 @@
               [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
               [best best-move])
             (let [[successor-state _] (first successor-states)
-                  [v-temp _] (negamax-inner successor-state (- new-beta) (- new-alpha) timeout (not is-first-player) (- max-depth 1) grid-width grid-height)
+                  [v-temp _] (negamax-inner successor-state
+                                            (- new-beta)
+                                            (- new-alpha)
+                                            timeout
+                                            (not is-first-player)
+                                            (dec max-depth)
+                                            grid-width
+                                            grid-height)
                   v (- v-temp)]
               (if (> v best)
                 (let [new-best v
-                      new-best-move (first (clojure.set/difference (set (successor-state is-first-player)) (set (state is-first-player))))]
+                      new-best-move (successor-state :last-move)]
                   (if (> new-best new-alpha)
                     (let [ret-alpha new-best]
                       (if (>= ret-alpha new-beta)
@@ -292,7 +337,7 @@
     ""
     [is-first-player state timeout grid-width grid-height]
     ; TODO Return if timeout
-    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 4 grid-width grid-height)]
+    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 3 grid-width grid-height)]
       (prn "Negamax-value" negamax-value)
         move))
 
@@ -317,7 +362,6 @@
 
   (defn chantest
     []
-
     (let [c (async/chan (async/sliding-buffer 1))
           heuristic-c (async/chan (async/sliding-buffer 1))
           timeout-chan (async/timeout 2000)]
