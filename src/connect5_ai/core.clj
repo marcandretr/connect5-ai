@@ -25,7 +25,7 @@
         (= (.indexOf (rest list-to-check) :wall) -1))
     (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
       (if (< count-in-list 3)
-        count-in-list
+        (Math/pow 2 count-in-list)
         1000))
     0))
 
@@ -291,12 +291,10 @@
   (defn negamax
     ""
     [is-first-player state timeout grid-width grid-height]
-    ; Return if timeout
-    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 1 grid-width grid-height)]
+    ; TODO Return if timeout
+    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 4 grid-width grid-height)]
       (prn "Negamax-value" negamax-value)
-      (if is-first-player
-        move
-        (second (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 1 grid-width grid-height))))) ; TODO: WTF
+        move))
 
   (defn -getNextMove
     "Gets the next best move"
