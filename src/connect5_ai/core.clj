@@ -5,12 +5,11 @@
             [clojure.math.combinatorics :as combo])
   (:gen-class))
 
-(def width-heuristic-calculation 6)
+(def width-heuristic-calculation 5)
 (def directors {:h (map #(do [%1 0]) (range -5 6))
                 :v (map #(do [0 %1]) (range -5 6))
                 :d1 (map #(do [%1 %1]) (range -5 6))
                 :d2 (map #(do [%1 (- %1)]) (range -5 6))})
-
 
 (defn gen-heuristic-dictionary
   "Generate the dictionnary of heuristics values"
@@ -26,8 +25,8 @@
 
   (if
       (and
-        (= (.indexOf (rest list-to-check) opponent) -1)
-        (= (.indexOf (rest list-to-check) :wall) -1))
+        (= (.indexOf list-to-check opponent) -1)
+        (= (.indexOf list-to-check :wall) -1))
     (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
       (if (< count-in-list 3)
         (Math/pow 2 count-in-list)
@@ -37,6 +36,11 @@
 (defn calc-heuristic
   ""
   [list-to-check player opponent]
+
+  (+
+    (calc-positive-heuristic list-to-check player opponent))
+
+
   (- (calc-positive-heuristic list-to-check player opponent)
      (calc-positive-heuristic (reverse list-to-check) opponent player)))
 
@@ -182,64 +186,15 @@
                                (contains? max-line index-in-line) :max
                                (contains? min-line index-in-line) :min
                                :else :empty)))
-                         (map (partial map + point) (directors linetype-max)))
-
-                       ;(let [da-big-list (for [i (range -5 6)
-                       ;
-                       ;                        :let [index-in-line (+ i (case linetype-max
-                       ;                                          :v y
-                       ;                                          :h x
-                       ;                                          :d1 (if (pos? line-index) y x)
-                       ;                                          :d2 (if (pos? line-index) x (- grid-h y))))]]
-                       ;                    (cond
-                       ;                      (or
-                       ;                        (prn :index-in-line index-in-line)
-                       ;                        (< index-in-line 0)
-                       ;                        (>= index-in-line (case linetype-max
-                       ;                                        :h grid-w
-                       ;                                        :v grid-h
-                       ;                                        :d1 (cond
-                       ;                                              (= line-index 0) (min grid-w grid-h)
-                       ;                                              (< grid-w grid-h) (if (< line-index 0)
-                       ;                                                                  (if (<= (- grid-w grid-h) line-index)
-                       ;                                                                    grid-w
-                       ;                                                                    (+ grid-h line-index))
-                       ;                                                                  (- grid-w line-index))
-                       ;                                              (>= grid-w grid-h) (if (< line-index 0)
-                       ;                                                                   (+ grid-h line-index)
-                       ;                                                                   (if (>= (- grid-w grid-h) line-index)
-                       ;                                                                     grid-h
-                       ;                                                                     (- grid-w line-index))))
-                       ;                                        :d2 (cond
-                       ;                                              (= line-index 0) (min grid-w grid-h)
-                       ;                                              (< grid-w grid-h) (if (< line-index 0)
-                       ;                                                                  (if (<= (- grid-w grid-h) line-index)
-                       ;                                                                    grid-w
-                       ;                                                                    (+ grid-h line-index))
-                       ;                                                                  (- grid-w line-index))
-                       ;                                              (>= grid-w grid-h) (if (< line-index 0)
-                       ;                                                                   (+ grid-h line-index)
-                       ;                                                                   (if (>= (- grid-w grid-h) line-index)
-                       ;                                                                     grid-h
-                       ;                                                                     (- grid-w line-index))))))) :wall
-                       ;                      (contains? max-line index-in-line) :max
-                       ;                      (contains? min-line index-in-line) :min
-                       ;                      :else :empty))
-                       ;
-                       ;      ]
-                       ;  da-big-list)
-                       ))
+                         (map (partial map + point) (directors linetype-max)))))
                    max-lines min-lines)]
 
     (reduce + (map (fn [path]
-                     (prn "PATH" path)
-                     (prn "*Sent1" (take 6 path) (get-in heuristic-dict (take 6 path)) )
-                     (prn "*Sent2" (reverse (take-last 6 path)) (get-in heuristic-dict (reverse(take-last 6 path))))
                      (assert (= :empty (nth path 5)))
                      (+
-             (get-in heuristic-dict (take 6 path))
-             (get-in heuristic-dict (reverse(take-last 6 path))))
-           ) paths))))
+                       (get-in heuristic-dict (take 5 path))
+                       (get-in heuristic-dict (reverse (take-last 5 path))))
+                     ) paths))))
 
 (defn get-value-for-state
   ""
@@ -337,7 +292,7 @@
     ""
     [is-first-player state timeout grid-width grid-height]
     ; TODO Return if timeout
-    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 3 grid-width grid-height)]
+    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 5 grid-width grid-height)]
       (prn "Negamax-value" negamax-value)
         move))
 
@@ -356,9 +311,7 @@
                               grid-width
                               grid-height)]
         (prn "Decision: " decision)
-        (into [] decision)
-
-        )))
+        (into [] decision))))
 
   (defn chantest
     []
