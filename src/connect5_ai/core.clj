@@ -6,8 +6,8 @@
   (:gen-class))
 
 (def width-heuristic-calculation 5)
-(def directors {:h (map #(do [%1 0]) (range -5 6))
-                :v (map #(do [0 %1]) (range -5 6))
+(def directors {:h  (map #(do [%1 0]) (range -5 6))
+                :v  (map #(do [0 %1]) (range -5 6))
                 :d1 (map #(do [%1 %1]) (range -5 6))
                 :d2 (map #(do [%1 (- %1)]) (range -5 6))})
 
@@ -24,9 +24,9 @@
   [list-to-check player opponent]
 
   (if
-      (and
-        (= (.indexOf list-to-check opponent) -1)
-        (= (.indexOf list-to-check :wall) -1))
+    (and
+      (= (.indexOf list-to-check opponent) -1)
+      (= (.indexOf list-to-check :wall) -1))
     (let [count-in-list (reduce #(+ %1 (if (= %2 player) 1 0)) 0 list-to-check)]
       (if (< count-in-list 3)
         (Math/pow 2 count-in-list)
@@ -51,6 +51,22 @@
           (gen-heuristic-dictionary width-heuristic-calculation)
           (apply clojure.math.combinatorics/cartesian-product
                  (for [_ (range width-heuristic-calculation)] [:min :max :wall :empty]))))
+
+(defn generate-valid-keys
+  ""
+  [depth]
+  (let [half-keys (filter
+                    #(loop [keys %
+                            wall-done false]
+                      (if (empty? keys)
+                        true
+                        (if (and (not wall-done) (not (= (first keys) :wall)))
+                          (recur (rest keys) true)
+                          (if (and wall-done (= (first keys) :wall))
+                            false
+                            (recur (rest keys) wall-done)))))
+                    (combo/selections [:min :max :empty :wall] (/ depth 2)))]
+    (for [k1 half-keys k2 half-keys] (concat k1 (reverse k2)))))
 
 (def heuristic-dict (fill-heuristics-dict))
 
@@ -207,10 +223,10 @@
                          [grid-w grid-h])))
 
 
-  (defn generate-world-from-position
-    ""
-    [grid-w grid-h state position is-first-player]
-    (let [tstate (transient state)]
+(defn generate-world-from-position
+  ""
+  [grid-w grid-h state position is-first-player]
+  (let [tstate (transient state)]
     (assoc! tstate is-first-player (conj (state is-first-player) position))
     (assoc! tstate :last-move position)
     (assoc! tstate :heuristic-result (get-value-for-state grid-w
