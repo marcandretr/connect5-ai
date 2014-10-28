@@ -102,8 +102,6 @@
          prev-right-partial-streak-count 0
          prev-right-direct-streak 0]
     (if (or
-          ;(prn prev-left-direct-streak prev-left-streak-type prev-right-streak-type prev-right-direct-streak)
-          ;(prn prev-left-is-dead prev-right-is-dead)
           (empty? left-part)
           (and prev-left-is-dead prev-right-is-dead))
       (if (and (not= prev-left-streak-type prev-right-streak-type)
@@ -115,7 +113,6 @@
           (+
             (opl
               (cond
-                ;(prn prev-left-partial-streak-count prev-right-partial-streak-count) -3332
                 (or (= :wall prev-left-streak-type) (= :empty prev-left-streak-type)) 0
 
                 (= 4 prev-left-direct-streak) Double/POSITIVE_INFINITY
@@ -125,19 +122,12 @@
                   (< 0 prev-right-partial-streak-count)
                   (= 0 prev-right-direct-streak)) 50000
 
-                ;(and
-                ;  (= 3 prev-left-direct-streak)
-                ;  (< 0 prev-left-partial-streak-count)
-                ;  (or (= 0 prev-right-direct-streak)
-                ;      (and (< 0 prev-right-direct-streak)
-                ;           (not= prev-left-streak-type prev-right-streak-type)))) 50000
-
                 (<= 4 (+ prev-left-streak-count prev-left-partial-streak-count)) (+ prev-left-direct-streak prev-left-streak-count)
                 :else 0))
 
             (opr
               (cond
-                ;(prn prev-left-partial-streak-count prev-right-partial-streak-count) -333
+
                 (or (= :wall prev-right-streak-type) (= :empty prev-right-streak-type)) 0
                 (= 4 prev-right-direct-streak) Double/POSITIVE_INFINITY
                 (and
@@ -145,13 +135,6 @@
                   (< 0 prev-right-partial-streak-count)
                   (< 0 prev-left-partial-streak-count)
                   (= 0 prev-left-direct-streak)) 50000
-
-                ;(and
-                ;  (= 3 prev-right-direct-streak)
-                ;  (< 0 prev-right-partial-streak-count)
-                ;  (or (= 0 prev-left-direct-streak)
-                ;      (and (< 0 prev-left-direct-streak)
-                ;           (not= prev-left-streak-type prev-right-streak-type)))) 50000 ;
 
                 (<= 4 (+ prev-right-streak-count prev-right-partial-streak-count)) (+ prev-right-direct-streak prev-right-streak-count)
                 :else 0))
@@ -424,25 +407,11 @@
   (or (= Double/POSITIVE_INFINITY (state :heuristic-result))
       (= Double/NEGATIVE_INFINITY (state :heuristic-result))))
 
-(defn minimax-decision
-  [grid-w grid-h is-first-player state timeout]
-
-  (println grid-w grid-h is-first-player state)
-  (if (and
-        is-first-player
-        (empty? (state true)))
-    ; Return a vector
-    ; If the board is empty and we are player 1
-    [(long (/ grid-w 2)) (long (/ grid-h 2))]
-    ; Otherwise
-    ;(gen-successors grid-w grid-h is-first-player state)
-    ))
 
 (defn- is-it-a-win?
   ""
   [grid-w grid-h state]
   (let [point (state :last-move)
-        _ (prn "tptptp" point)
         max-lines ((state :lines) :max)
         min-lines ((state :lines) :min)
         indexes (line-index-from-point point grid-w)
@@ -475,15 +444,11 @@
   ""
   [state alpha beta got-time? is-first-player max-depth grid-width grid-height]
 
-  ;(prn is-first-player max-depth)
-  ;(clojure.pprint/pprint state)
-
-
   (if (empty? (state true))
     {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
     (if (and (is-terminal-state? state)
              (is-it-a-win? grid-width grid-height state))
-      (let [who-wins? (if is-a-win
+      (let [who-wins? (if (is-it-a-win? grid-width grid-height state)
                         (not is-first-player)
                         nil)]
         {:best-move  (state :last-move)
@@ -514,23 +479,15 @@
                                                                                                                   grid-height)
                   child-best-value (- tmp-child-best-value)]
 
-              (if (and (= child-best-value (best :best-value) Double/POSITIVE_INFINITY)
-                       (not= who-win? nil))
-                {:best-value child-best-value :best-move child-best-move :who-win? who-win?}
-                (if (and (= (best :best-value) Double/POSITIVE_INFINITY)
-                         (< child-best-value (best :best-value)))
-                  best
                   (if (> child-best-value (best :best-value))
                     (let [best {:best-value child-best-value :best-move child-best-move :who-win? who-win?}]
                       (if (> (best :best-value) alpha)
                         (let [alpha (best :best-value)]
-                          (if (and (>= alpha beta)
-                                   (or (not= child-best-value Double/POSITIVE_INFINITY)
-                                       (not= who-win? nil)))
+                          (if (>= alpha beta)
                             best
                             (recur (rest sucessors) best alpha)))
                         (recur (rest sucessors) best alpha)))
-                    (recur (rest sucessors) best alpha)))))))))))
+                    (recur (rest sucessors) best alpha)))))))))
 
 (defn negamax
   ""
@@ -538,25 +495,23 @@
   (loop
       [deepness 1]
 
-    (if @got-time?
-      (do
-        (async/>!! ret-chan (negamax-inner state
-                                           Double/NEGATIVE_INFINITY
-                                           Double/POSITIVE_INFINITY
-                                           got-time?
-                                           (not is-first-player)
-                                           deepness         ; Steps
-                                           grid-width grid-height))
-
-        (recur (inc deepness)))
-      (prn "Deepness" deepness)
-      )))
+    (if (and @got-time? (< deepness 10))
+      (let [point (negamax-inner state
+                               Double/NEGATIVE_INFINITY
+                               Double/POSITIVE_INFINITY
+                               got-time?
+                               (not is-first-player)
+                               deepness         ; Steps
+                               grid-width grid-height)]
+        (when (not (empty? (point :best-move)))
+          (async/>!! ret-chan point))
+        (recur (inc deepness))))))
 
 (defn -getNextMove
   "Gets the next best move"
   [charmat timeout]
   (let [ret-chan (async/chan (async/sliding-buffer 1))
-        timeout-chan (async/timeout timeout)
+        timeout-chan (async/timeout (- timeout 5))
         got-time? (atom true)
         charmat-seq (lazy-seq charmat)
         state (gen-map-from-charmat charmat-seq {true #{} false #{}} 0)
@@ -577,4 +532,5 @@
 
     (let [{decision :best-move} (async/<!! ret-chan)]
       (swap! got-time? (fn [lastval] false))
+      (prn "sent:" decision)
       (into [] decision))))
