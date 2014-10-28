@@ -438,80 +438,98 @@
       ;(gen-successors grid-w grid-h is-first-player state)
       ))
 
-  (defn- negamax-inner
-    ""
-    [state alpha beta timeout is-first-player max-depth grid-width grid-height]
+(defn- negamax-inner
+  ""
+  [state alpha beta got-time? is-first-player max-depth grid-width grid-height]
 
-    ;(prn is-first-player max-depth)
-    ;(clojure.pprint/pprint state)
+  ;(prn is-first-player max-depth)
+  ;(clojure.pprint/pprint state)
 
-    (if (empty? (state true))
-      {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
-      (if (is-terminal-state? state)
+
+  (if (empty? (state true))
+    {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
+    (if (is-terminal-state? state)
+      {:best-move  (state :last-move)
+       :best-value (state :heuristic-result)}
+      (if (= max-depth 0)
         {:best-move  (state :last-move)
          :best-value (state :heuristic-result)}
-        (if (= max-depth 0)
-          {:best-move  (state :last-move)
-           :best-value (state :heuristic-result)}
 
-          (loop
-              [sucessors (generate-successor-states state grid-width grid-height (not is-first-player)) ; Flip is first player.
-               best {:best-value Double/NEGATIVE_INFINITY
-                     :best-move  []}
-               alpha alpha]
+        (loop
+            [sucessors (generate-successor-states state grid-width grid-height (not is-first-player)) ; Flip is first player.
+             best {:best-value Double/NEGATIVE_INFINITY
+                   :best-move  []}
+             alpha alpha]
 
-            (if (empty? sucessors)
-              best
-              (let [{child-best-move :best-move tmp-child-best-value :best-value} (negamax-inner (first (first sucessors))
-                                                                                                 (- beta)
-                                                                                                 (- alpha)
-                                                                                                 timeout
-                                                                                                 (not is-first-player)
-                                                                                                 (dec max-depth)
-                                                                                                 grid-width
-                                                                                                 grid-height)
-                    child-best-value (- tmp-child-best-value)]
+          (if (empty? sucessors)
+            best
+            (let [{child-best-move :best-move tmp-child-best-value :best-value} (negamax-inner (first (first sucessors))
+                                                                                               (- beta)
+                                                                                               (- alpha)
+                                                                                               got-time?
+                                                                                               (not is-first-player)
+                                                                                               (dec max-depth)
+                                                                                               grid-width
+                                                                                               grid-height)
+                  child-best-value (- tmp-child-best-value)]
 
-                (if (> child-best-value (best :best-value))
-                  (let [best {:best-value child-best-value :best-move child-best-move}]
-                    (if (> (best :best-value) alpha)
-                      (let [alpha (best :best-value)]
-                        (if (>= alpha beta)
-                          best
-                          (recur (rest sucessors) best alpha)))
-                      (recur (rest sucessors) best alpha)))
-                  (recur (rest sucessors) best alpha)))))))))
+              (if (> child-best-value (best :best-value))
+                (let [best {:best-value child-best-value :best-move child-best-move}]
+                  (if (> (best :best-value) alpha)
+                    (let [alpha (best :best-value)]
+                      (if (>= alpha beta)
+                        best
+                        (recur (rest sucessors) best alpha)))
+                    (recur (rest sucessors) best alpha)))
+                (recur (rest sucessors) best alpha)))))))))
 
-  (defn negamax
-    ""
-    [is-first-player state timeout grid-width grid-height]
-    ; TODO Return if timeout
-    (let [nega-result (negamax-inner state
-                                     Double/NEGATIVE_INFINITY
-                                     Double/POSITIVE_INFINITY
-                                     timeout
-                                     (not is-first-player)
-                                     5 ; Steps
-                                     grid-width grid-height)]
-      (prn "Negamax-value" nega-result)
-      (nega-result :best-move)))
+(defn negamax
+  ""
+  [is-first-player state got-time? grid-width grid-height ret-chan]
+  (loop
+      [deepness 1]
+
+    (if @got-time?
+      (do
+        (async/>!! ret-chan (negamax-inner state
+                                           Double/NEGATIVE_INFINITY
+                                           Double/POSITIVE_INFINITY
+                                           got-time?
+                                           (not is-first-player)
+                                           deepness          ; Steps
+                                           grid-width grid-height))
+
+        (recur (inc deepness)))
+      (prn "Deepness" deepness)
+      )))
 
   (defn -getNextMove
     "Gets the next best move"
     [charmat timeout]
-    (let [charmat-seq (lazy-seq charmat)
+    (let [ret-chan (async/chan (async/sliding-buffer 1))
+          timeout-chan (async/timeout (- timeout 10))
+          got-time? (atom true)
+          charmat-seq (lazy-seq charmat)
           state (gen-map-from-charmat charmat-seq {true #{} false #{}} 0)
           is-first-player (even? (+ (count (state true)) (count (state false))))
           grid-width (count (first charmat-seq))
           grid-height (count charmat-seq)]
 
-      (let [decision (negamax is-first-player
-                        state
-                        timeout
-                        grid-width
-                        grid-height)]
-        (prn "Decision: " decision)
+      (async/go
+        (negamax is-first-player
+                 state
+                 got-time?
+                 grid-width
+                 grid-height
+                 ret-chan))
+
+      ; Block on the timeout channel
+      (async/<!! timeout-chan)
+
+      (let [{decision :best-move} (async/<!! ret-chan)]
+        (swap! got-time? (fn [lastval] false))
         (into [] decision))))
+
   (defn chantest
     []
     (let [c (async/chan (async/sliding-buffer 1))
