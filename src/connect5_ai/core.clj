@@ -102,77 +102,82 @@
          prev-right-partial-streak-count 0
          prev-right-direct-streak 0]
     (if (or
-          (prn prev-left-direct-streak prev-left-streak-type prev-right-streak-type prev-right-direct-streak)
-          (prn prev-left-is-dead prev-right-is-dead)
+          ;(prn prev-left-direct-streak prev-left-streak-type prev-right-streak-type prev-right-direct-streak)
+          ;(prn prev-left-is-dead prev-right-is-dead)
           (empty? left-part)
             (and prev-left-is-dead prev-right-is-dead))
-      (if (and (not= prev-left-streak-type prev-right-streak-type);
+      (if (and (not= prev-left-streak-type prev-right-streak-type)
                (not= prev-left-streak-type :wall)
                (not= prev-right-streak-type :wall))
         ; Types differents
-        (+ (cond
-             (prn prev-left-partial-streak-count prev-right-partial-streak-count) -3332
-             (= :wall prev-left-streak-type) 0
-             (= 4 prev-left-direct-streak) (cond (= prev-left-streak-type :max) Double/POSITIVE_INFINITY
-                                                 (= prev-left-streak-type :min) 1000000
-                                                 :else 0)
+        (let [opl (if (= :min prev-left-streak-type) + +)
+              opr (if (= :min prev-right-streak-type) + +)]
+        (+
+          (opl
+            (cond
+             ;(prn prev-left-partial-streak-count prev-right-partial-streak-count) -3332
+             (or (= :wall prev-left-streak-type) (= :empty prev-left-streak-type)) 0
+
+             (= 4 prev-left-direct-streak) Double/POSITIVE_INFINITY
              (and
                (= 3 prev-left-direct-streak)
                (< 0 prev-left-partial-streak-count)
                (< 0 prev-right-partial-streak-count)
-               (= 0 prev-right-direct-streak)) (if (= prev-left-streak-type :min) 50000 24998)
+               (= 0 prev-right-direct-streak)) 50000
 
-             (and
-               (= 4 prev-left-direct-streak)
-               (= 0 prev-left-partial-streak-count)
-               (or (= 0 prev-right-direct-streak)
-                   (and (< 0 prev-right-direct-streak)
-                        (not= prev-left-streak-type prev-right-streak-type)))) (if (= prev-left-streak-type :min) 50000 24998)
+             ;(and
+             ;  (= 3 prev-left-direct-streak)
+             ;  (< 0 prev-left-partial-streak-count)
+             ;  (or (= 0 prev-right-direct-streak)
+             ;      (and (< 0 prev-right-direct-streak)
+             ;           (not= prev-left-streak-type prev-right-streak-type)))) 50000
 
              (<= 4 (+ prev-left-streak-count prev-left-partial-streak-count)) (+ prev-left-direct-streak prev-left-streak-count)
-             :else 0)
+             :else 0))
 
-           (cond
-             (prn prev-left-partial-streak-count prev-right-partial-streak-count) -333
-             (= :wall prev-right-streak-type) 0
-             (= 4 prev-right-direct-streak) (cond
-                                              (= prev-right-streak-type :max) Double/POSITIVE_INFINITY
-                                                  (= prev-right-streak-type :min) 1000000
-                                                  :else 0)
+          (opr
+            (cond
+             ;(prn prev-left-partial-streak-count prev-right-partial-streak-count) -333
+             (or (= :wall prev-right-streak-type) (= :empty prev-right-streak-type)) 0
+             (= 4 prev-right-direct-streak) Double/POSITIVE_INFINITY
              (and
                (= 3 prev-right-direct-streak)
                (< 0 prev-right-partial-streak-count)
                (< 0 prev-left-partial-streak-count)
-               (= 0 prev-left-direct-streak)) (if (= prev-right-streak-type :min) 50000 24998)
+               (= 0 prev-left-direct-streak)) 50000
 
-             (and
-               (= 4 prev-right-direct-streak)
-               (= 0 prev-right-partial-streak-count)
-               (or (= 0 prev-left-direct-streak)
-                   (and (< 0 prev-left-direct-streak)
-                        (not= prev-left-streak-type prev-right-streak-type)))) (if (= prev-right-streak-type :min) 50000 24998)
+             ;(and
+             ;  (= 3 prev-right-direct-streak)
+             ;  (< 0 prev-right-partial-streak-count)
+             ;  (or (= 0 prev-left-direct-streak)
+             ;      (and (< 0 prev-left-direct-streak)
+             ;           (not= prev-left-streak-type prev-right-streak-type)))) 50000 ;
 
              (<= 4 (+ prev-right-streak-count prev-right-partial-streak-count)) (+ prev-right-direct-streak prev-right-streak-count)
-             :else 0)
-           )
+             :else 0))
+           ))
         ; Types identiques ou mur
-        (cond
+        (let [op (if (or (= :min prev-left-streak-type) (= :min prev-right-streak-type)) - +)]
+          (op (cond
           (= :wall prev-left-streak-type prev-right-streak-type) 0;
-          (= 4 (+ prev-left-direct-streak prev-right-direct-streak)) (cond (= prev-left-streak-type :max) Double/POSITIVE_INFINITY
-                                                                           (= prev-left-streak-type :min) 1000000
-                                                                           (= prev-right-streak-type :max) Double/POSITIVE_INFINITY
-                                                                           (= prev-right-streak-type :min) 1000000
-                                                                           :else 0);
-          (and (= 3 (+ prev-left-direct-streak prev-right-direct-streak)) (>= (+ prev-left-partial-streak-count prev-right-partial-streak-count) 2)) (if (or
-                                                                                                                                                           (= prev-left-streak-type :min)
-                                                                                                                                                           (= prev-right-streak-type :min))
-                                                                                                                                                          50000 24998)
+          (= 4 (+ prev-left-direct-streak prev-right-direct-streak)) (if (or
+                                                                           (= prev-left-streak-type :max)
+                                                                           (= prev-left-streak-type :min)
+                                                                           (= prev-right-streak-type :max)
+                                                                           (= prev-right-streak-type :min))
+                                                                       Double/POSITIVE_INFINITY
+                                                                       0);
+          (and (= 3 (+ prev-left-direct-streak prev-right-direct-streak))
+               (>= prev-right-partial-streak-count 1)
+               (>= prev-left-partial-streak-count 1);
+          )
+          50000
           (<= 5 (+ prev-left-direct-streak prev-right-direct-streak)) 0
 
           :else (+ prev-left-direct-streak
                    prev-left-streak-count
                    prev-right-direct-streak
-                   prev-right-streak-count)))
+                   prev-right-streak-count)))))
 
       (let [left (first left-part)
             right (first right-part)
@@ -197,10 +202,11 @@
             right-streak-count (cond (or right-is-dead (= right :empty)) prev-right-streak-count
                                      :else (inc prev-right-streak-count))
 
-            left-partial-streak-count (cond left-is-dead prev-left-partial-streak-count
+            left-partial-streak-count (cond (or left-is-dead (not= left :empty)) prev-left-partial-streak-count
                                             :else (inc prev-left-partial-streak-count))
-            right-partial-streak-count (cond right-is-dead prev-right-partial-streak-count
-                                             :else (inc prev-right-partial-streak-count))
+
+            right-partial-streak-count (cond (or right-is-dead (not= right :empty)) prev-right-partial-streak-count
+                                             :else (inc prev-right-partial-streak-count));
 
             left-direct-streak (if left-direct-streak-is-dead prev-left-direct-streak (inc prev-left-direct-streak))
             right-direct-streak (if right-direct-streak-is-dead prev-right-direct-streak (inc prev-right-direct-streak))
@@ -238,8 +244,8 @@
   )
 
 (def adjacent-transform
-  (for [c1 (range -2 3)
-        c2 (range -2 3)]
+  (for [c1 (range -1 2)
+        c2 (range -1 2)]
     [c1 c2]))
 
 (defn in-bounds?
@@ -292,11 +298,6 @@
         #{}
         all-parent-points-union)
       all-parent-points-union)))
-
-(defn is-terminal-state
-  ""
-  [state]
-  false)
 
 (defn default-assoc
   [col mkey element]
@@ -361,10 +362,8 @@
         paths (map (fn [[linetype-max max-lines-for-type] [linetype-min min-lines-for-type]]
                      (assert (= linetype-max linetype-min) (str "Map is not mixing the same lines - " linetype-max " with " linetype-min))
                      (let [line-index (indexes linetype-max)
-                           _ (prn linetype-max line-index point)
                            max-line (or (max-lines-for-type line-index) #{})
                            min-line (or (min-lines-for-type line-index) #{})
-                           _ (prn max-line min-line)
                            ]
 
                        (map
@@ -380,42 +379,34 @@
 
     (reduce + (map (fn [path]
                      (assert (= :empty (nth path 5)))
-                     (prn path (compute-path-value path))
-                     (+
-                       ;(get-in heuristic-dict (take 5 path))
-                       (compute-path-value path)
-                       )
-                     ) paths))))
+                     (compute-path-value path))
+                   paths))))
 
 (defn get-value-for-state
   ""
-  [grid-w grid-h state is-first-player]
+  [grid-w grid-h state]
 
-  (let [all-lines (build-all-lines-from-state state grid-w grid-h is-first-player)]
-
-    (get-value-for-point all-lines
+    (get-value-for-point (state :lines)
                          (state :last-move)
-                         [grid-w grid-h])))
-
+                         [grid-w grid-h]))
 
 (defn generate-world-from-position
   ""
   [grid-w grid-h state position is-first-player]
-  (let [tstate (transient state)]
+  (let [state (assoc state :last-move position)
+        state (assoc state :lines (build-all-lines-from-state state grid-w grid-h is-first-player))
+        tstate (transient state)]
+
     (assoc! tstate is-first-player (conj (state is-first-player) position))
-    (assoc! tstate :last-move position)
     (assoc! tstate :heuristic-result (get-value-for-state grid-w
                                                           grid-h
-                                                          (assoc state :last-move position)
-                                                          is-first-player))
+                                                          state))
     (persistent! tstate)))
 
   (defn generate-successor-states
     ""
     [state grid-width grid-height is-first-player]
-    (let [ _ (prn "Childrens of" (state :last-move))
-           possible-moves (gen-children-points state grid-width grid-height)
-           ;_ (prn state possible-moves)
+    (let [possible-moves (gen-children-points state grid-width grid-height)
           possible-states (set
                             (map
                               #(generate-world-from-position grid-width grid-height state % is-first-player)
@@ -423,9 +414,15 @@
       (reduce
         (fn [col item]
           (assoc col item (item :heuristic-result)))
-        (clojure.data.priority-map/priority-map-by >)
+        (clojure.data.priority-map/priority-map-by <)
         possible-states)))
 
+(defn is-terminal-state?
+  ""
+  [state]
+
+  (or (= Double/POSITIVE_INFINITY (state :heuristic-result))
+      (= Double/NEGATIVE_INFINITY (state :heuristic-result))))
 
   (defn minimax-decision
     [grid-w grid-h is-first-player state timeout]
@@ -444,49 +441,60 @@
   (defn- negamax-inner
     ""
     [state alpha beta timeout is-first-player max-depth grid-width grid-height]
-    (if (is-terminal-state state)
-      [(get-value-for-state state) []] ; TODO: Would be supposed to crash... Seems like it's never called
-      (if (= max-depth 0)
-        ;[(heuristic grid-width grid-height is-first-player state) []]
-        [(state :heuristic-result) (state :last-move)]
-        (loop [successor-states (generate-successor-states state grid-width grid-height is-first-player)
-               new-alpha alpha
-               new-beta beta
-               best Double/NEGATIVE_INFINITY
-               best-move []]
-          (if (empty? successor-states)
-            (if (empty? (state true))
-              [best [(long (/ grid-width 2)) (long (/ grid-height 2))]]
-              [best best-move])
-            (let [[successor-state _] (first successor-states)
-                  [v-temp _] (negamax-inner successor-state
-                                            (- new-beta)
-                                            (- new-alpha)
-                                            timeout
-                                            (not is-first-player)
-                                            (dec max-depth)
-                                            grid-width
-                                            grid-height)
-                  v v-temp ;(- v-temp)
-                  _ (prn "HEUR_VAL" v (successor-state :last-move))]
-              (if (> v best)
-                (let [new-best v
-                      new-best-move (successor-state :last-move)]
-                  (if (> new-best new-alpha)
-                    (let [ret-alpha new-best]
-                      (if (>= ret-alpha new-beta)
-                        [new-best new-best-move]
-                        (recur (rest successor-states) ret-alpha new-beta new-best new-best-move)))
-                    (recur (rest successor-states) new-alpha new-beta new-best new-best-move)))
-                (recur (rest successor-states) new-alpha new-beta best best-move))))))))
+
+    ;(prn is-first-player max-depth)
+    ;(clojure.pprint/pprint state)
+
+    (if (empty? (state true))
+      {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
+      (if (is-terminal-state? state)
+        {:best-move  (state :last-move)
+         :best-value (state :heuristic-result)}
+        (if (= max-depth 0)
+          {:best-move  (state :last-move)
+           :best-value (state :heuristic-result)}
+
+          (loop
+              [sucessors (generate-successor-states state grid-width grid-height (not is-first-player)) ; Flip is first player.
+               best {:best-value Double/NEGATIVE_INFINITY
+                     :best-move  []}
+               alpha alpha]
+
+            (if (empty? sucessors)
+              best
+              (let [{child-best-move :best-move tmp-child-best-value :best-value} (negamax-inner (first (first sucessors))
+                                                                                                 (- beta)
+                                                                                                 (- alpha)
+                                                                                                 timeout
+                                                                                                 (not is-first-player)
+                                                                                                 (dec max-depth)
+                                                                                                 grid-width
+                                                                                                 grid-height)
+                    child-best-value (- tmp-child-best-value)]
+
+                (if (> child-best-value (best :best-value))
+                  (let [best {:best-value child-best-value :best-move child-best-move}]
+                    (if (> (best :best-value) alpha)
+                      (let [alpha (best :best-value)]
+                        (if (>= alpha beta)
+                          best
+                          (recur (rest sucessors) best alpha)))
+                      (recur (rest sucessors) best alpha)))
+                  (recur (rest sucessors) best alpha)))))))))
 
   (defn negamax
     ""
     [is-first-player state timeout grid-width grid-height]
     ; TODO Return if timeout
-    (let [[negamax-value move] (negamax-inner state Double/NEGATIVE_INFINITY Double/POSITIVE_INFINITY timeout is-first-player 3 grid-width grid-height)]
-      (prn "Negamax-value" negamax-value)
-        move))
+    (let [nega-result (negamax-inner state
+                                     Double/NEGATIVE_INFINITY
+                                     Double/POSITIVE_INFINITY
+                                     timeout
+                                     (not is-first-player)
+                                     5 ; Steps
+                                     grid-width grid-height)]
+      (prn "Negamax-value" nega-result)
+      (nega-result :best-move)))
 
   (defn -getNextMove
     "Gets the next best move"
@@ -498,10 +506,10 @@
           grid-height (count charmat-seq)]
 
       (let [decision (negamax is-first-player
-                              state
-                              timeout
-                              grid-width
-                              grid-height)]
+                        state
+                        timeout
+                        grid-width
+                        grid-height)]
         (prn "Decision: " decision)
         (into [] decision))))
   (defn chantest
