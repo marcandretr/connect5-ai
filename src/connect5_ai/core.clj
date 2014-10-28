@@ -438,6 +438,39 @@
       ;(gen-successors grid-w grid-h is-first-player state)
       ))
 
+(defn- is-it-a-win?
+  ""
+  [grid-w grid-h state]
+  (let [point (state :last-move)
+        _ (prn "tptptp" point)
+        max-lines ((state :lines) :max)
+        min-lines ((state :lines) :min)
+        indexes (line-index-from-point point grid-w)
+        paths (map (fn [[linetype-max max-lines-for-type] [linetype-min min-lines-for-type]]
+                     (assert (= linetype-max linetype-min) (str "Map is not mixing the same lines - " linetype-max " with " linetype-min))
+                     (let [line-index (indexes linetype-max)
+                           max-line (or (max-lines-for-type line-index) #{})
+                           min-line (or (min-lines-for-type line-index) #{})
+                           ]
+
+                       (map
+                         (fn [[nx ny :as new-point]]
+                           (let [index-in-line (if (= linetype-max :v) ny nx)]
+                             (cond
+                               (not (in-bounds? grid-w grid-h new-point)) :wall
+                               (contains? max-line index-in-line) :max
+                               (contains? min-line index-in-line) :min
+                               :else :empty)))
+                         (map (partial map + point) (directors linetype-max)))))
+                   max-lines min-lines)]
+    (boolean (some true? (map (fn [path]
+                                (let [parts (partition 5 1 (assoc (into [] path) 5 :max))]
+                                  (reduce #(or %1
+                                               (apply (partial = :max) %2))
+                                          false
+                                          parts)
+                                  )) paths)))))
+
 (defn- negamax-inner
   ""
   [state alpha beta got-time? is-first-player max-depth grid-width grid-height]
@@ -448,22 +481,30 @@
 
   (if (empty? (state true))
     {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
-    (if (is-terminal-state? state)
-      {:best-move  (state :last-move)
-       :best-value (state :heuristic-result)}
+    (if (and (is-terminal-state? state)
+             (is-it-a-win? grid-width grid-height state))
+      (let [who-wins? (if is-a-win
+                        (not is-first-player)
+                        nil)]
+        {:best-move  (state :last-move)
+         :best-value (state :heuristic-result)
+         :who-win?   who-wins?})
+
       (if (= max-depth 0)
         {:best-move  (state :last-move)
-         :best-value (state :heuristic-result)}
+         :best-value (state :heuristic-result)
+         :who-win?   nil}
 
         (loop
             [sucessors (generate-successor-states state grid-width grid-height (not is-first-player)) ; Flip is first player.
              best {:best-value Double/NEGATIVE_INFINITY
-                   :best-move  []}
+                   :best-move  []
+                   :who-win?   nil}
              alpha alpha]
 
           (if (empty? sucessors)
             best
-            (let [{child-best-move :best-move tmp-child-best-value :best-value} (negamax-inner (first (first sucessors))
+            (let [{child-best-move :best-move tmp-child-best-value :best-value who-win? :who-win?} (negamax-inner (first (first sucessors))
                                                                                                (- beta)
                                                                                                (- alpha)
                                                                                                got-time?
@@ -473,15 +514,23 @@
                                                                                                grid-height)
                   child-best-value (- tmp-child-best-value)]
 
+              (if (and (= child-best-value (best :best-value) Double/POSITIVE_INFINITY)
+                       (not= who-win? nil))
+                {:best-value child-best-value :best-move child-best-move :who-win? who-win?}
+                (if (and (= (best :best-value) Double/POSITIVE_INFINITY)
+                         (< child-best-value (best :best-value)))
+                  best
               (if (> child-best-value (best :best-value))
-                (let [best {:best-value child-best-value :best-move child-best-move}]
+                (let [best {:best-value child-best-value :best-move child-best-move :who-win? who-win?}]
                   (if (> (best :best-value) alpha)
                     (let [alpha (best :best-value)]
-                      (if (>= alpha beta)
+                      (if (and (>= alpha beta)
+                               (or (not= child-best-value Double/POSITIVE_INFINITY)
+                                   (not= who-win? nil)))
                         best
                         (recur (rest sucessors) best alpha)))
                     (recur (rest sucessors) best alpha)))
-                (recur (rest sucessors) best alpha)))))))))
+                (recur (rest sucessors) best alpha)))))))))))
 
 (defn negamax
   ""
