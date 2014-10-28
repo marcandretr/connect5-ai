@@ -61,7 +61,7 @@ public class DemoCorrecteurB {
             g.set(4, 2+i, 2);
         }
         coup = joueur.getProchainCoup(g, 2000);
-        System.out.println("Test #1");
+        System.out.println("Test #2");
         System.out.println((coup.ligne==0 && (coup.colonne==1||coup.colonne==6)) ? "Réussi": "Échoué");
 
     }

@@ -442,6 +442,7 @@
   ""
   [grid-w grid-h state]
   (let [point (state :last-move)
+        _ (prn "tptptp" point)
         max-lines ((state :lines) :max)
         min-lines ((state :lines) :min)
         indexes (line-index-from-point point grid-w)
@@ -463,7 +464,7 @@
                          (map (partial map + point) (directors linetype-max)))))
                    max-lines min-lines)]
     (boolean (some true? (map (fn [path]
-                       (let [parts (partition 5 1 path)]
+                       (let [parts (partition 5 1 (assoc (into [] path) 5 :max))]
                          (reduce #(or %1
                                      (apply (partial = :max) %2))
                                  false
