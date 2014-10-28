@@ -157,7 +157,7 @@
              :else 0))
            ))
         ; Types identiques ou mur
-        (let [op (if (or (= :min prev-left-streak-type) (= :min prev-right-streak-type)) - +)]
+        (let [op (if (or (= :min prev-left-streak-type) (= :min prev-right-streak-type)) + +)]
           (op (cond
           (= :wall prev-left-streak-type prev-right-streak-type) 0;
           (= 4 (+ prev-left-direct-streak prev-right-direct-streak)) (if (or
@@ -398,9 +398,9 @@
         tstate (transient state)]
 
     (assoc! tstate is-first-player (conj (state is-first-player) position))
-    (assoc! tstate :heuristic-result (get-value-for-state grid-w
+    (assoc! tstate :heuristic-result (- (get-value-for-state grid-w
                                                           grid-h
-                                                          state))
+                                                          state)))
     (persistent! tstate)))
 
   (defn generate-successor-states
@@ -507,7 +507,7 @@
     "Gets the next best move"
     [charmat timeout]
     (let [ret-chan (async/chan (async/sliding-buffer 1))
-          timeout-chan (async/timeout (- timeout 10))
+          timeout-chan (async/timeout timeout)
           got-time? (atom true)
           charmat-seq (lazy-seq charmat)
           state (gen-map-from-charmat charmat-seq {true #{} false #{}} 0)
