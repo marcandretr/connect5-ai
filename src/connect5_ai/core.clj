@@ -104,16 +104,14 @@
     (if (or
           (empty? left-part)
           (and prev-left-is-dead prev-right-is-dead))
-      (if (and (not= prev-left-streak-type prev-right-streak-type)
-               (not= prev-left-streak-type :wall)
-               (not= prev-right-streak-type :wall))
+      (if (not= prev-left-streak-type prev-right-streak-type)
         ; Types differents
         (let [opl (if (= :min prev-left-streak-type) + +)
               opr (if (= :min prev-right-streak-type) + +)]
           (+
             (opl
               (cond
-                (or (= :wall prev-left-streak-type) (= :empty prev-left-streak-type)) 0
+                (not= :max prev-left-streak-type) 0
 
                 (= 4 prev-left-direct-streak) Double/POSITIVE_INFINITY
                 (and
@@ -123,12 +121,12 @@
                   (= 0 prev-right-direct-streak)) 50000
 
                 (<= 4 (+ prev-left-streak-count prev-left-partial-streak-count)) (+ prev-left-direct-streak prev-left-streak-count)
-                :else 0))
+                :else 1))
 
             (opr
               (cond
 
-                (or (= :wall prev-right-streak-type) (= :empty prev-right-streak-type)) 0
+                (not= :wall prev-right-streak-type) 0
                 (= 4 prev-right-direct-streak) Double/POSITIVE_INFINITY
                 (and
                   (= 3 prev-right-direct-streak)
@@ -136,25 +134,19 @@
                   (< 0 prev-left-partial-streak-count)
                   (= 0 prev-left-direct-streak)) 50000
 
-                (<= 4 (+ prev-right-streak-count prev-right-partial-streak-count)) (+ prev-right-direct-streak prev-right-streak-count)
-                :else 0))
+                (<= 4 (+ prev-right-streak-count prev-right-partial-streak-count)) 
+                    (+ prev-right-direct-streak prev-right-streak-count)
+                :else 1))
             ))
-        ; Types identiques ou mur
+        ; Types identiques
         (let [op (if (or (= :min prev-left-streak-type) (= :min prev-right-streak-type)) + +)]
           (op (cond
-                (= :wall prev-left-streak-type prev-right-streak-type) 0 ;
-                (= 4 (+ prev-left-direct-streak prev-right-direct-streak)) (if (or
-                                                                                 (= prev-left-streak-type :max)
-                                                                                 (= prev-left-streak-type :min)
-                                                                                 (= prev-right-streak-type :max)
-                                                                                 (= prev-right-streak-type :min))
-                                                                             Double/POSITIVE_INFINITY
-                                                                             0) ;
+                (not= :max prev-left-streak-type) 0 ;
+                (= 4 (+ prev-left-direct-streak prev-right-direct-streak)) Double/POSITIVE_INFINITY
+                                                                             
                 (and (= 3 (+ prev-left-direct-streak prev-right-direct-streak))
                      (>= prev-right-partial-streak-count 1)
-                     (>= prev-left-partial-streak-count 1)  ;
-                     )
-                50000
+                     (>= prev-left-partial-streak-count 1)) 50000
                 (<= 5 (+ prev-left-direct-streak prev-right-direct-streak)) 0
 
                 :else (+ prev-left-direct-streak
@@ -446,14 +438,9 @@
 
   (if (empty? (state true))
     {:best-move [(long (/ grid-width 2)) (long (/ grid-height 2))]}
-    (if (and (is-terminal-state? state)
-             (is-it-a-win? grid-width grid-height state))
-      (let [who-wins? (if (is-it-a-win? grid-width grid-height state)
-                        (not is-first-player)
-                        nil)]
+    (if (and (is-terminal-state? state))
         {:best-move  (state :last-move)
-         :best-value (state :heuristic-result)
-         :who-win?   who-wins?})
+         :best-value (state :heuristic-result)}
 
       (if (= max-depth 0)
         {:best-move  (state :last-move)
@@ -500,7 +487,7 @@
                                Double/NEGATIVE_INFINITY
                                Double/POSITIVE_INFINITY
                                got-time?
-                               (not is-first-player)
+                               is-first-player
                                deepness         ; Steps
                                grid-width grid-height)]
         (when (not (empty? (point :best-move)))
