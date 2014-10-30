@@ -64,6 +64,21 @@
                 (<= 4 (+ prev-right-streak-count prev-right-partial-streak-count)) 
                     (+ prev-right-direct-streak prev-right-streak-count)
                 :else 1)
+
+              (if (and
+                    (= :min prev-left-streak-type)
+                    (= 3 prev-left-direct-streak)
+                    (< 0 prev-left-partial-streak-count)
+                    (< 0 prev-right-partial-streak-count)
+                    (= 0 prev-right-direct-streak)) 1000000 0)
+
+              (if (and
+                    (= :min prev-right-streak-type)
+                    (= 3 prev-right-direct-streak)
+                    (< 0 prev-right-partial-streak-count)
+                    (< 0 prev-left-partial-streak-count)
+                    (= 0 prev-left-direct-streak)) 1000000 0)
+
             )
         ; Types identiques
           (cond
@@ -133,7 +148,6 @@
           right-streak-count
           right-partial-streak-count
           right-direct-streak)))))
-
 (def compute-path-value (memoize compute-path-value))
 
 
@@ -149,7 +163,6 @@
          (< y 0)
          (>= x grid-w)
          (>= y grid-h))))
-(def in-bounds? (memoize in-bounds?))
 
 (defn gen-map-from-charmat
   "Generates map representation of blabla"
@@ -176,7 +189,6 @@
     (map
       #(map + point %)
       adjacent-transform)))
-(def gen-surrounding-points (memoize gen-surrounding-points))
 
 (defn gen-children-points
   [parent-state grid-w grid-h]
@@ -209,8 +221,8 @@
   {:v  x
    :h  y
    :d1 (- x y)
-   :d2 (- (dec grid-width) x y)})
-(def line-index-from-point (memoize line-index-from-point))
+   :d2 (- (dec grid-width) x y)}
+  )
 
 (defn gen-lines
   [points grid-w grid-h]
@@ -234,9 +246,7 @@
             (default-assoc h (indexes :h) x)
             (default-assoc v (indexes :v) y)
             (default-assoc d1 (indexes :d1) x)
-            (default-assoc d2 (indexes :d2) x)))))))
-(def gen-lines (memoize gen-lines))
-
+            (default-assoc d2 (indexes :d2) x)))))))        ; Todo: if it shits bricks, look here closely.
 
 (defn build-all-lines-from-state
   [state grid-w grid-h is-first-player]
@@ -315,6 +325,39 @@
   (or (= Double/POSITIVE_INFINITY (state :heuristic-result))
       (= Double/NEGATIVE_INFINITY (state :heuristic-result))))
 
+
+(defn- is-it-a-win?
+  ""
+  [grid-w grid-h state]
+  (let [point (state :last-move)
+        max-lines ((state :lines) :max)
+        min-lines ((state :lines) :min)
+        indexes (line-index-from-point point grid-w)
+        paths (map (fn [[linetype-max max-lines-for-type] [linetype-min min-lines-for-type]]
+                     (assert (= linetype-max linetype-min) (str "Map is not mixing the same lines - " linetype-max " with " linetype-min))
+                     (let [line-index (indexes linetype-max)
+                           max-line (or (max-lines-for-type line-index) #{})
+                           min-line (or (min-lines-for-type line-index) #{})
+                           ]
+
+                       (map
+                         (fn [[nx ny :as new-point]]
+                           (let [index-in-line (if (= linetype-max :v) ny nx)]
+                             (cond
+                               (not (in-bounds? grid-w grid-h new-point)) :wall
+                               (contains? max-line index-in-line) :max
+                               (contains? min-line index-in-line) :min
+                               :else :empty)))
+                         (map (partial map + point) (directors linetype-max)))))
+                   max-lines min-lines)]
+    (boolean (some true? (map (fn [path]
+                                (let [parts (partition 5 1 (assoc (into [] path) 5 :max))]
+                                  (reduce #(or %1
+                                               (apply (partial = :max) %2))
+                                          false
+                                          parts)
+                                  )) paths)))))
+
 (defn- negamax-inner
   ""
   [state alpha beta got-time? is-first-player depth max-depth grid-width grid-height]
@@ -358,9 +401,7 @@
                       (if (> (best :best-value) alpha)
                         (let [alpha (best :best-value)]
                           (if (>= alpha beta)
-                            (do
-                              best
-                              )
+                            best
                             (recur (rest sucessors) best alpha)))
                         (recur (rest sucessors) best alpha)))
                     (recur (rest sucessors) best alpha)))))))))
@@ -368,11 +409,11 @@
 (defn negamax
   ""
   [is-first-player state got-time? grid-width grid-height ret-chan]
+  ;(async/>!! ret-chan {:best-move [0 0]})
   (try
     (loop
-        [deepness 1]
-      (prn "deepness" deepness @got-time?)
-      (if (and @got-time?)
+        [deepness 2]
+      (if @got-time?
         (let [point (negamax-inner state
                                    Double/NEGATIVE_INFINITY
                                    Double/POSITIVE_INFINITY
